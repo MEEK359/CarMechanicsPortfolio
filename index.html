@@ -47,66 +47,53 @@
     }
 
     #mobile-controls {
-  position: absolute;
-  bottom: 30px;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 20px;
-  z-index: 3;
-  pointer-events: none;
-}
-
-.control-column {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: auto;
-}
-
-#mobile-controls button {
-  width: 60px;
-  height: 60px;
-  font-size: 24px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid white;
-  border-radius: 12px;
-  backdrop-filter: blur(4px);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
-}
-
-
-    #mobile-controls .row {
+      position: absolute;
+      bottom: 30px;
+      width: 100%;
       display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .control-column {
+      pointer-events: auto;
+    }
+
+    .left-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .right-controls {
+      display: flex;
+      flex-direction: row;
       gap: 10px;
     }
 
     #mobile-controls button {
-  width: 50px;
-  height: 50px;
-  font-size: 24px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid #fff;
-  border-radius: 10px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
-}
-
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+      border-radius: 12px;
+      backdrop-filter: blur(4px);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<div class="section" id="about">👋 About Me<br>I'm <b style="color: rgb(119, 255, 169);">Mukesh Sahu</b> a creative developer passionate about interactive web experiences.</div>
+<div class="section" id="about">👋 About Me<br>I'm <b style="color: rgb(119, 255, 169);">Mukesh Sahu</b>, a creative developer passionate about interactive web experiences.</div>
 <div class="section" id="projects">🚀 Projects<br>Check out my latest projects built with HTML, CSS, and JavaScript.</div>
 <div class="section" id="contact">📬 Contact<br>Reach me via email: <b style="color: rgb(119, 255, 169);">mmukeshssahu8136@gmail.com</b> or LinkedIn: <a href="https://www.linkedin.com/in/mukesh-sahu-4964352b4" style="color: rgb(119, 255, 169);">Mukesh Sahu</a>.</div>
 
@@ -123,7 +110,6 @@
     <button id="right">▶</button>
   </div>
 </div>
-
 
 <script>
 const canvas = document.getElementById('game');
@@ -160,8 +146,14 @@ document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
 ["up", "down", "left", "right"].forEach(dir => {
   const btn = document.getElementById(dir);
-  btn.addEventListener('touchstart', () => mobileKeys[dir] = true);
-  btn.addEventListener('touchend', () => mobileKeys[dir] = false);
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    mobileKeys[dir] = true;
+  });
+  btn.addEventListener('touchend', e => {
+    e.preventDefault();
+    mobileKeys[dir] = false;
+  });
 });
 
 function update() {
