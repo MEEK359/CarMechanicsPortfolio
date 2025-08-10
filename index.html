@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Neon Portfolio — Drive to Discover</title>
+  <style>
+    :root{
+      --bg-1:#0f1724;
+      --bg-2:#071226;
+      --glass: rgba(255,255,255,0.06);
+      --accent: #7beaa0;
+      --muted:white;
+    }
+
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; -webkit-font-smoothing:antialiased;}
+    body{
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(123,234,160,0.04), transparent),
+                  linear-gradient(180deg,var(--bg-1),var(--bg-2));
+      overflow:hidden;color:var(--muted);
+    }
+
+    canvas#game{position:fixed;inset:0;display:block;z-index:0;background:transparent}
+
+    .grid{position:fixed;inset:0;z-index:0;pointer-events:none;mix-blend-mode:overlay;opacity:0.12;background-image:linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);background-size:120px 120px,120px 120px;animation:drift 30s linear infinite}
+    @keyframes drift{from{background-position:0 0,0 0;}to{background-position:400px 400px,-400px -400px}}
+
+    .section{position:absolute;z-index:3;padding:18px;border-radius:12px;min-width:220px;backdrop-filter: blur(8px);background:var(--glass);border:1px solid rgba(255,255,255,0.06);box-shadow:0 6px 24px rgba(2,8,23,0.6);transition:transform .28s cubic-bezier(.2,.9,.3,1),box-shadow .22s}
+    .section h3{margin:0 0 6px;font-size:16px}
+    .section p{margin:0;font-size:13px;opacity:0.95}
+
+    #about{top:90px;left:80px}
+    #projects{top:300px;left:540px}
+    #contact{top:460px;left:220px}
+
+    .section.glow{box-shadow:0 10px 36px rgba(123,234,160,0.12),0 2px 8px rgba(0,0,0,0.6);transform:translateY(-6px) scale(1.02)}
+
+    #score{position:fixed;right:28px;top:18px;z-index:4;padding:10px 16px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12));border:1px solid rgba(123,234,160,0.08);backdrop-filter: blur(6px);display:flex;gap:12px;align-items:center}
+    #score .label{font-size:12px;color:rgba(255,255,255,0.7)}
+    #score .value{font-weight:700;color:var(--accent);font-size:20px}
+
+    #mobile-controls{position:fixed;left:20px;bottom:20px;z-index:5;display:flex;gap:12px;align-items:center}
+    .control-joystick{display:flex;flex-direction:column;gap:10px}
+    .btn{width:62px;height:62px;border-radius:50%;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:20px;user-select:none;backdrop-filter:blur(6px);background:rgba(255,255,255,0.02);touch-action:manipulation}
+
+    .plusone{position:fixed;pointer-events:none;font-weight:700;color:var(--accent);transform:translateY(0);opacity:1;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .7s}
+
+    .ui-target{position:absolute;width:36px;height:36px;border-radius:50%;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;mix-blend-mode:screen;filter:drop-shadow(0 8px 18px rgba(0,0,0,0.6))}
+
+    @media (max-width:600px){.section{min-width:180px;padding:14px}#projects{left:60px;top:340px}}
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="grid"></div>
+
+  <div class="section" id="about"><h3>About Me</h3><p>I'm <strong style="color:var(--accent)">Mukesh Sahu</strong>, building interactive web experiences and playful portfolios.</p></div>
+  <div class="section" id="projects"><h3>Projects</h3><p>Explore demos — 3D, Games & Experiments.</p></div>
+  <div class="section" id="contact"><h3>Contact</h3><p>Email: <strong style="color:var(--accent)">mmukeshssahu8136@gmail.com</strong></p></div>
+
+  <div id="score"><div class="label">Score</div><div class="value" id="scoreValue">0</div></div>
+
+  <div id="mobile-controls" aria-hidden="false">
+    <div class="control-joystick">
+      <div class="btn" id="up">▲</div>
+      <div style="display:flex;gap:10px;justify-content:center"><div class="btn" id="left">◀</div><div class="btn" id="right">▶</div></div>
+      <div class="btn" id="down">▼</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    function resize(){canvas.width = innerWidth; canvas.height = innerHeight}
+    window.addEventListener('resize', resize); resize();
+
+    const car = { x: innerWidth/2, y: innerHeight/2, w:56, h:28, angle:0, speed:0, maxSpeed:7 };
+
+    const targets = [];
+    const uiTargets = [];
+    let score = 0;
+
+    function spawnTarget(){
+      const margin = 80;
+      const t = { x: Math.random()*(canvas.width - margin*2)+margin, y: Math.random()*(canvas.height - margin*2)+margin, r:18, hue: Math.random()*360 };
+      targets.push(t);
+      const el = document.createElement('div'); el.className='ui-target';
+      el.style.left = (t.x - 18) + 'px'; el.style.top = (t.y - 18) + 'px';
+      el.innerHTML = `<svg width='36' height='36' viewBox='0 0 36 36' xmlns='http://www.w3.org/2000/svg'><circle cx='18' cy='18' r='8' fill='none' stroke='hsl('+t.hue+',90%,60%)' stroke-width='3' stroke-opacity='0.98'/></svg>`;
+      document.body.appendChild(el);
+      uiTargets.push(el);
+    }
+
+    for(let i=0;i<6;i++) spawnTarget();
+
+    const keys = {};
+    addEventListener('keydown', e=> keys[e.key.toLowerCase()]=true);
+    addEventListener('keyup', e=> keys[e.key.toLowerCase()]=false);
+
+    const mobile = {up:false,down:false,left:false,right:false};
+    ['up','down','left','right'].forEach(id=>{
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', e=>{e.preventDefault(); mobile[id]=true});
+      el.addEventListener('touchend', e=>{e.preventDefault(); mobile[id]=false});
+      el.addEventListener('mousedown', e=>{mobile[id]=true});
+      el.addEventListener('mouseup', e=>{mobile[id]=false});
+    });
+
+    function lerp(a,b,t){return a + (b-a)*t}
+
+    const sections = Array.from(document.querySelectorAll('.section'));
+    function checkSectionCollision(){
+      const carRect = {left: car.x - car.w*0.5, right: car.x + car.w*0.5, top: car.y - car.h*0.5, bottom: car.y + car.h*0.5};
+      sections.forEach(s=>{
+        const r = s.getBoundingClientRect();
+        if(carRect.right > r.left && carRect.left < r.right && carRect.bottom > r.top && carRect.top < r.bottom){
+          car.speed *= -0.35; s.classList.add('glow'); setTimeout(()=>s.classList.remove('glow'),220);
+        }
+      })
+    }
+
+    function checkTargetCollision(){
+      const carRect = {left: car.x - car.w*0.5, right: car.x + car.w*0.5, top: car.y - car.h*0.5, bottom: car.y + car.h*0.5};
+      for(let i=targets.length-1;i>=0;i--){
+        const t = targets[i];
+        const collided = !(carRect.right < t.x - t.r || carRect.left > t.x + t.r || carRect.bottom < t.y - t.r || carRect.top > t.y + t.r);
+        if(collided){
+          score++; document.getElementById('scoreValue').textContent = score;
+          const plus = document.createElement('div'); plus.className='plusone'; plus.textContent='+1'; plus.style.left=(t.x)+'px'; plus.style.top=(t.y-10)+'px'; document.body.appendChild(plus);
+          requestAnimationFrame(()=>{ plus.style.transform='translateY(-40px)'; plus.style.opacity='0'; });
+          setTimeout(()=>plus.remove(),800);
+
+          burst(t.x,t.y);
+
+          uiTargets[i].remove(); uiTargets.splice(i,1); targets.splice(i,1);
+          spawnTarget();
+
+          if(score >= 10 && score < 100){ car.maxSpeed = 8; }
+          if(score >= 100){ car.maxSpeed = 9; }
+        }
+      }
+    }
+
+    const particles = [];
+    function burst(x,y){ for(let i=0;i<18;i++) particles.push({x,y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.6)*5,life:Math.random()*40+40,color:`hsl(${Math.random()*60+40},90%,60%)`,size:Math.random()*3+1}); }
+    function updateParticles(){ for(let i=particles.length-1;i>=0;i--){ const p = particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.14; p.life--; if(p.life<=0) particles.splice(i,1); } }
+
+    let last = performance.now();
+    function loop(t){
+      const dt = Math.min(40, t - last)/16.6; last = t;
+      const left = keys['a']||keys['arrowleft']||mobile.left;
+      const right = keys['d']||keys['arrowright']||mobile.right;
+      const forward = keys['w']||keys['arrowup']||mobile.up;
+      const back = keys['s']||keys['arrowdown']||mobile.down;
+
+      if(left) car.angle -= 0.06*dt;
+      if(right) car.angle += 0.06*dt;
+
+      const targetSpeed = forward? car.maxSpeed : (back? -2 : 0);
+      car.speed = lerp(car.speed, targetSpeed, 0.08*dt);
+
+      car.speed *= 0.995;
+
+      car.x += Math.cos(car.angle)*car.speed*dt*8/6;
+      car.y += Math.sin(car.angle)*car.speed*dt*8/6;
+
+      car.x = Math.max(16, Math.min(canvas.width-16, car.x));
+      car.y = Math.max(16, Math.min(canvas.height-16, car.y));
+
+      checkSectionCollision();
+      checkTargetCollision();
+      updateParticles();
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const g = ctx.createLinearGradient(0,0,0,canvas.height); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.15)'); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      targets.forEach((t,i)=>{
+        const time = performance.now()/800 + i;
+        const pulse = 1 + Math.sin(time*2)*0.06;
+        ctx.beginPath(); ctx.arc(t.x,t.y,t.r*pulse,0,Math.PI*2);
+        ctx.lineWidth = 3; ctx.strokeStyle = `hsla(${t.hue},90%,60%,0.95)`; ctx.stroke();
+        const rg = ctx.createRadialGradient(t.x,t.y,1,t.x,t.y,t.r*2);
+        rg.addColorStop(0, `hsla(${t.hue},90%,60%,0.12)`);
+        rg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = rg; ctx.fillRect(t.x-t.r*2,t.y-t.r*2,t.r*4,t.r*4);
+        uiTargets[i].style.left = (t.x - 18) + 'px'; uiTargets[i].style.top = (t.y - 18) + 'px';
+      });
+
+      particles.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle = p.color; ctx.fill(); });
+
+      ctx.save(); ctx.translate(car.x, car.y+8); ctx.rotate(car.angle); ctx.scale(1,0.4); ctx.beginPath(); ctx.fillStyle='rgba(2,8,23,0.6)'; ctx.ellipse(0,0,car.w*0.6,car.h*0.6,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+
+      ctx.save(); ctx.translate(car.x,car.y); ctx.rotate(car.angle); const s = 0.5 + Math.min(1.06, 1 + car.speed*0.03); ctx.scale(s,s); ctx.fillStyle = '#0ff'; ctx.fillRect(-car.w/2, -car.h/2, car.w, car.h); ctx.restore();
+    }
+
+    function repositionDOMTargets(){ uiTargets.forEach((el,i)=>{ const t = targets[i]; if(t) { el.style.left=(t.x-18)+'px'; el.style.top=(t.y-18)+'px'; } }) }
+    window.addEventListener('resize', ()=>{ repositionDOMTargets(); });
+  </script>
+</body>
+</html>
